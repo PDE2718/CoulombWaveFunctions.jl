@@ -1,6 +1,11 @@
-"""
+@doc raw"""
 # CoulumbWaveFunctions.jl
 A Julia native implementation of coulomb wave functions
+## References：
+
+# [1] High-precision evaluation of the regular and irregular Coulomb wavefunctions A. R. Barnett. Mathematics. 1982.
+
+# [2] Barnett A.R. (1996) The Calculation of Spherical Bessel and Coulomb Functions. In: Bartschat K. (eds) Computational Atomic Physics. Springer, Berlin, Heidelberg. https://doi.org/10.1007/978-3-642-61010-3_9
 """
 module CoulombWaveFunctions
 
@@ -22,15 +27,15 @@ function contfrac_spbesselj(l::Int, x, maxiter)
     return -f
 end
 
-
 @doc raw"""
     sphericalbessel_jy(l::Int, x; maxiter=10000)
 
-Implementation of spherical bessel functions ``j_l(x),y_l(x)``
+Spherical bessel functions ``j_l(x),y_l(x)`` and their derivatives
 
 ## Arguments
-* `l`: Integer order
-* `x`: radial coordinate
+* `l::Int`: Integer order
+* `x::real`: radial coordinate
+* `maxiter`: max number of iterations. No need to change
 
 ## Return Values
 * `j` :  ``j_l(x)``
@@ -62,6 +67,7 @@ end
 # coulomb_H(l, η, x)
 # args: | l-order | η-charge constant | x-unitless radial coordinate (ρ) |
 # output: Hl⁺(η,x) , (d/dx)Hl⁺(η,x)
+
 function contfrac_CF1(l, η, x, maxiter)
     α = f = (l+1)/x + η/(l+1)
     an = bn = β = Δ = 0.
@@ -97,6 +103,21 @@ function contfrac_CF2(l, η, x, maxiter)
     return -imag(f)/x, real(f)/x
 end
 
+@doc raw"""
+    coulomb_H(l, η, x; maxiter=10000)
+
+Coulomb Hankel wave function ``H_l(\eta,x)=G_l(\eta,x)+iF_l(\eta,x)`` and its derivative
+
+## Arguments
+* `l::real`: Order, can be either integer or float
+* `η::real`: Coulomb constant
+* `x::real,positive`: radial coordinate
+* `maxiter`: max number of iterations. No need to change
+
+## Return Values
+* `H::Complex` :  ``H_l(η,x)``
+* `Hp::Complex` :  ``\frac{d}{dx}H_l``
+"""
 function coulomb_H(l, η, x; maxiter=10000)
     f,sg = contfrac_CF1(l,η,x,maxiter)
     p,q = contfrac_CF2(l,η,x,maxiter)
@@ -108,6 +129,23 @@ function coulomb_H(l, η, x; maxiter=10000)
     return complex(G,F), complex(Gp,Fp)
 end
 
+@doc raw"""
+    coulomb_FG(l, η, x; maxiter=10000)
+
+Coulomb Hankel wave functions ``F_l(\eta,x)``,``G_l(\eta,x)`` and their derivative
+
+## Arguments
+* `l::real`: Order, can be either integer or float
+* `η::real`: Coulomb constant
+* `x::real,positive`: radial coordinate
+* `maxiter`: max number of iterations. No need to change
+
+## Return Values
+* `F` :  regular coulomb wave function ``H_l(η,x)``
+* `G` :  irregular coulomb wave function ``H_l(η,x)``
+* `Fp` :  ``\frac{d}{dx}F_l``
+* `Fp` :  ``\frac{d}{dx}G_l``
+"""
 function coulomb_FG(l, η, x; maxiter=10000)
     f,sg = contfrac_CF1(l,η,x,maxiter)
     p,q = contfrac_CF2(l,η,x,maxiter)
@@ -119,31 +157,4 @@ function coulomb_FG(l, η, x; maxiter=10000)
     return F,G,Fp,Gp
 end
 
-##  gsl_coulomb_H(l, η::Float64, x::Float64)
-#   wapper of Coulomb Wave Functions F,G from GNU Scientific Library(GSL)
-#   args: | l-order | η-charge constant | x-unitless radial coordinate (ρ) |
-#   output: Hl⁺(η,x) , (d/dx)Hl⁺(η,x) ;    both are ComplexF64
-function gsl_coulomb_H(l, η::Float64, x::Float64)
-    FG = map(x->x.val,sf_coulomb_wave_FG_e(η,x,l,0,0.,0.))
-    return complex(FG[3],FG[1]), complex(FG[4],FG[2])
-end
-
-##  spfuncs_spbessel_jy(l,x)
-#   wapper of sphericalbesselj/y from SpecialFunctions.jl
-#   args: | l-order | x-unitless radial coordinate (ρ) |
-#   output: jl, yl, jl', yl'
-function spfuncs_spbessel_jy(l,x)
-    j=sphericalbesselj(l,x);
-    jp=(l*sphericalbesselj(l-1,x)-(l+1)*sphericalbesselj(l+1,x))/(2l+1)
-    y=sphericalbessely(l,x)
-    yp=(l*sphericalbessely(l-1,x)-(l+1)*sphericalbessely(l+1,x))/(2l+1)
-    return j,y,jp,yp
-end
-
 end # module
-
-## References：
-
-# [1] High-precision evaluation of the regular and irregular Coulomb wavefunctions A. R. Barnett. Mathematics. 1982.
-
-# [2] Barnett A.R. (1996) The Calculation of Spherical Bessel and Coulomb Functions. In: Bartschat K. (eds) Computational Atomic Physics. Springer, Berlin, Heidelberg. https://doi.org/10.1007/978-3-642-61010-3_9
